@@ -157,6 +157,13 @@ export function pomodoroReducer(state, action) {
         message: '',
       }
     }
+    case 'RESET_STATS':
+      return {
+        ...state,
+        completedFocusSessions: 0,
+        totalFocusMs: 0,
+        message: '',
+      }
     case 'SWITCH_MODE': {
       if (!MODES[action.mode]) return state
       const duration = minutesToMs(state.settings[action.mode])
@@ -279,6 +286,9 @@ export default function usePomodoro() {
     },
     reset() {
       dispatch({ type: 'RESET' })
+    },
+    resetStats() {
+      dispatch({ type: 'RESET_STATS' })
     },
     switchMode(mode) {
       dispatch({ type: 'SWITCH_MODE', mode })

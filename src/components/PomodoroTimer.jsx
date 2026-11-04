@@ -102,7 +102,18 @@ export default function PomodoroTimer() {
           </div>
         </div>
 
-        <AmbientAudio />
+        <div className="stats-footer">
+          <button
+            className="reset-sessions"
+            type="button"
+            disabled={timer.completedFocusSessions === 0 && timer.totalFocusMs === 0}
+            onClick={timer.resetStats}
+          >
+            <span aria-hidden="true">↺</span>
+            Reset sessions
+          </button>
+          <AmbientAudio />
+        </div>
       </div>
 
       {/* User-owned to-do implementation. */}
