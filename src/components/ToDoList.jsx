@@ -195,10 +195,66 @@ export default function ToDoList() {
     handleSaveEdit(id, description)
   }
 
-  function handleEditKeyDown(event) {
+  function handleIndentTask(item, description) {
+    if (filter !== 'all' || item.parentId !== null) return false
+
+    const currentIndex = toDoList.findIndex((candidate) => candidate.id === item.id)
+    const hasSubtasks = toDoList.some((candidate) => candidate.parentId === item.id)
+    if (currentIndex <= 0 || hasSubtasks) return false
+
+    const taskAbove = toDoList[currentIndex - 1]
+    const parentId = taskAbove.parentId ?? taskAbove.id
+    const updatedDescription = description.trim()
+    setToDoList((current) => current.map((candidate) => (
+      candidate.id === item.id
+        ? {
+          ...candidate,
+          parentId,
+          desc: updatedDescription || candidate.desc,
+        }
+        : candidate
+    )))
+    return true
+  }
+
+  function handleFinishAndAddNext(item, description) {
+    const updatedDescription = description.trim()
+    if (!updatedDescription) return
+
+    const id = nextIdRef.current
+    nextIdRef.current += 1
+    setToDoList((current) => {
+      const next = current.map((candidate) => (
+        candidate.id === item.id
+          ? { ...candidate, desc: updatedDescription }
+          : candidate
+      ))
+      const currentIndex = next.findIndex((candidate) => candidate.id === item.id)
+      if (currentIndex < 0) return current
+
+      let insertionIndex = currentIndex + 1
+      if (item.parentId === null) {
+        while (next[insertionIndex]?.parentId === item.id) insertionIndex += 1
+      }
+      next.splice(insertionIndex, 0, {
+        id,
+        desc: '',
+        completed: false,
+        parentId: item.parentId,
+      })
+      return next
+    })
+    cancelEditRef.current = false
+    setEditingId(id)
+    setEditTask('')
+  }
+
+  function handleEditKeyDown(event, item) {
     if (event.key === 'Enter') {
       event.preventDefault()
-      event.currentTarget.blur()
+      handleFinishAndAddNext(item, event.currentTarget.value)
+    } else if (event.key === 'Tab' && !event.shiftKey) {
+      if (handleIndentTask(item, event.currentTarget.value)) event.preventDefault()
     } else if (event.key === 'Escape') {
       cancelEditRef.current = true
       setEditingId(null)
@@ -348,7 +404,7 @@ export default function ToDoList() {
               placeholder="Type your task"
               onChange={(event) => setEditTask(event.target.value)}
               onBlur={(event) => handleEditBlur(item.id, event.target.value)}
-              onKeyDown={handleEditKeyDown}
+              onKeyDown={(event) => handleEditKeyDown(event, item)}
             />
           ) : (
             <button
