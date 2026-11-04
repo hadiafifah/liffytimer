@@ -53,7 +53,7 @@ export default function App() {
 
       <main className="app-shell">
         <header className="site-header">
-          <a className="brand" href="#top" aria-label="LiffyTimer home">LiffyTimer</a>
+          <a className="brand" href="#top" aria-label="liffy.work home">liffy.work</a>
           <WallpaperControls
             hasCustomWallpaper={customWallpaperUrl !== null}
             onApply={replaceCustomWallpaper}
