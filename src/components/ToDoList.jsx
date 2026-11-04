@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 const TODO_STORAGE_KEY = 'liffy:todos'
 
@@ -128,12 +128,9 @@ export default function ToDoList() {
   const [filter, setFilter] = useState('all')
   const [editingId, setEditingId] = useState(null)
   const [editTask, setEditTask] = useState('')
-  const [subtaskParentId, setSubtaskParentId] = useState(null)
-  const [subtask, setSubtask] = useState('')
   const [draggingId, setDraggingId] = useState(null)
   const [dropTargetId, setDropTargetId] = useState(null)
   const editInputRef = useRef(null)
-  const subtaskInputRef = useRef(null)
   const cancelEditRef = useRef(false)
   const nextIdRef = useRef(
     toDoList.reduce((nextId, item) => Math.max(nextId, item.id + 1), 0),
@@ -149,19 +146,10 @@ export default function ToDoList() {
     editInputRef.current?.select()
   }, [editingId])
 
-  useEffect(() => {
-    if (subtaskParentId === null) return
-    subtaskInputRef.current?.focus()
-  }, [subtaskParentId])
-
   function handleDelete(id) {
     setToDoList((current) => current.filter(
       (item) => item.id !== id && item.parentId !== id,
     ))
-    if (subtaskParentId === id) {
-      setSubtaskParentId(null)
-      setSubtask('')
-    }
   }
 
   function handleComplete(id) {
@@ -275,32 +263,25 @@ export default function ToDoList() {
     setEditTask('')
   }
 
-  function handleStartSubtask(parentId) {
-    setSubtaskParentId(parentId)
-    setSubtask('')
-  }
-
-  function handleSubtaskSubmit(event) {
-    event.preventDefault()
-    const description = subtask.trim()
-    if (!description || subtaskParentId === null) return
-
+  function handleAddSubtask(parentId) {
     const id = nextIdRef.current
     nextIdRef.current += 1
     setToDoList((current) => {
       const next = [...current]
-      let insertionIndex = next.findIndex((item) => item.id === subtaskParentId) + 1
-      while (next[insertionIndex]?.parentId === subtaskParentId) insertionIndex += 1
+      let insertionIndex = next.findIndex((item) => item.id === parentId) + 1
+      while (next[insertionIndex]?.parentId === parentId) insertionIndex += 1
       next.splice(insertionIndex, 0, {
-        desc: description,
+        desc: '',
         completed: false,
         id,
-        parentId: subtaskParentId,
+        parentId,
       })
       return next
     })
-    setSubtaskParentId(null)
-    setSubtask('')
+    setFilter('all')
+    cancelEditRef.current = false
+    setEditingId(id)
+    setEditTask('')
   }
 
   function handleMove(id, direction) {
@@ -355,12 +336,12 @@ export default function ToDoList() {
     const hasTaskText = (editingId === item.id ? editTask : item.desc).trim().length > 0
 
     return (
-      <Fragment key={item.id}>
-        <li
-          className={`todo-item${isSubtask ? ' todo-item--subtask' : ''}${item.completed ? ' todo-item--completed' : ''}${draggingId === item.id ? ' is-dragging' : ''}${dropTargetId === item.id ? ' is-drop-target' : ''}`}
-          onDragOver={(event) => handleDragOver(event, item.id)}
-          onDrop={(event) => handleDrop(event, item.id)}
-        >
+      <li
+        className={`todo-item${isSubtask ? ' todo-item--subtask' : ''}${item.completed ? ' todo-item--completed' : ''}${draggingId === item.id ? ' is-dragging' : ''}${dropTargetId === item.id ? ' is-drop-target' : ''}`}
+        key={item.id}
+        onDragOver={(event) => handleDragOver(event, item.id)}
+        onDrop={(event) => handleDrop(event, item.id)}
+      >
           <button
             className="todo-item__drag"
             type="button"
@@ -424,7 +405,7 @@ export default function ToDoList() {
                 type="button"
                 aria-label={`Add subtask to ${taskName}`}
                 title="Add subtask"
-                onClick={() => handleStartSubtask(item.id)}
+                onClick={() => handleAddSubtask(item.id)}
               >
                 <span aria-hidden="true">+</span>
               </button>
@@ -439,41 +420,7 @@ export default function ToDoList() {
               ×
             </button>
           </div>
-        </li>
-
-        {subtaskParentId === item.id && (
-          <li className="todo-subtask-form-row">
-            <form className="todo-subtask-form" onSubmit={handleSubtaskSubmit}>
-              <span className="todo-subtask-form__branch" aria-hidden="true">↳</span>
-              <input
-                ref={subtaskInputRef}
-                type="text"
-                value={subtask}
-                aria-label={`New subtask for ${taskName}`}
-                placeholder="Add a subtask"
-                onChange={(event) => setSubtask(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Escape') {
-                    setSubtaskParentId(null)
-                    setSubtask('')
-                  }
-                }}
-              />
-              <button type="submit">Add</button>
-              <button
-                type="button"
-                aria-label="Cancel adding subtask"
-                onClick={() => {
-                  setSubtaskParentId(null)
-                  setSubtask('')
-                }}
-              >
-                ×
-              </button>
-            </form>
-          </li>
-        )}
-      </Fragment>
+      </li>
     )
   })
 

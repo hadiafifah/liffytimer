@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import usePomodoro, { MODES } from '../hooks/usePomodoro'
 import AmbientAudio from './AmbientAudio'
 import SettingsPanel from './SettingsPanel'
@@ -23,9 +24,24 @@ function PauseIcon() {
 
 export default function PomodoroTimer() {
   const timer = usePomodoro()
+  const [showStats, setShowStats] = useState(() => (
+    typeof window === 'undefined' || !window.matchMedia('(max-width: 760px)').matches
+  ))
   const isRunning = timer.status === 'running'
   const isPaused = timer.status === 'paused'
   const sessionsUntilLongBreak = 4 - (timer.completedFocusSessions % 4)
+  const statsToggle = (
+    <button
+      className="stats-toggle"
+      type="button"
+      aria-expanded={showStats}
+      aria-controls="focus-statistics"
+      onClick={() => setShowStats((visible) => !visible)}
+    >
+      <span>Focus stats</span>
+      <span className={`stats-toggle__chevron${showStats ? ' is-open' : ''}`} aria-hidden="true">⌄</span>
+    </button>
+  )
 
   return (
     <section id="top" className="timer-section">
@@ -77,41 +93,47 @@ export default function PomodoroTimer() {
           <p className="completion-message" role="status">{timer.message}</p>
         )}
 
-        <div className="stats-grid" aria-label="Focus statistics">
-          <div>
-            <span className="stat-label">Focus sessions</span>
-            <strong>{timer.completedFocusSessions}</strong>
-            <span className="stat-detail">{sessionsUntilLongBreak} to long break</span>
-          </div>
-          <div>
-            <span className="stat-label">Total focus</span>
-            <strong>{formatFocusTime(timer.totalFocusMs)}</strong>
-            <span className="stat-detail">Completed time</span>
-          </div>
-          <div className="cycle-stat">
-            <span className="stat-label">Current cycle</span>
-            <div className="cycle-dots" aria-label={`${timer.completedFocusSessions % 4} of 4 sessions in this cycle`}>
-              {[0, 1, 2, 3].map((index) => (
-                <span
-                  className={index < timer.completedFocusSessions % 4 ? 'filled' : ''}
-                  key={index}
-                />
-              ))}
-            </div>
-            <span className="stat-detail">Four-session cycle</span>
-          </div>
-        </div>
+        {showStats && <div className="stats-toggle-row">{statsToggle}</div>}
 
-        <div className="stats-footer">
-          <button
-            className="reset-sessions"
-            type="button"
-            disabled={timer.completedFocusSessions === 0 && timer.totalFocusMs === 0}
-            onClick={timer.resetStats}
-          >
-            <span aria-hidden="true">↺</span>
-            Reset sessions
-          </button>
+        {showStats && (
+          <div className="stats-grid" id="focus-statistics" aria-label="Focus statistics">
+            <div>
+              <span className="stat-label">Focus sessions</span>
+              <strong>{timer.completedFocusSessions}</strong>
+              <span className="stat-detail">{sessionsUntilLongBreak} to long break</span>
+            </div>
+            <div>
+              <span className="stat-label">Total focus</span>
+              <strong>{formatFocusTime(timer.totalFocusMs)}</strong>
+              <span className="stat-detail">Completed time</span>
+            </div>
+            <div className="cycle-stat">
+              <span className="stat-label">Current cycle</span>
+              <div className="cycle-dots" aria-label={`${timer.completedFocusSessions % 4} of 4 sessions in this cycle`}>
+                {[0, 1, 2, 3].map((index) => (
+                  <span
+                    className={index < timer.completedFocusSessions % 4 ? 'filled' : ''}
+                    key={index}
+                  />
+                ))}
+              </div>
+              <span className="stat-detail">Four-session cycle</span>
+            </div>
+          </div>
+        )}
+
+        <div className={`stats-footer${showStats ? '' : ' is-collapsed'}`}>
+          {showStats ? (
+            <button
+              className="reset-sessions"
+              type="button"
+              disabled={timer.completedFocusSessions === 0 && timer.totalFocusMs === 0}
+              onClick={timer.resetStats}
+            >
+              <span aria-hidden="true">↺</span>
+              Reset sessions
+            </button>
+          ) : statsToggle}
           <AmbientAudio />
         </div>
       </div>

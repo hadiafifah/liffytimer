@@ -26,6 +26,9 @@ export default function AmbientAudio() {
   const [soundState, setSoundState] = useState(initialSoundState)
   const containerRef = useRef(null)
   const audioRefs = useRef({})
+  const audioContextRef = useRef(null)
+  const sourceNodesRef = useRef({})
+  const gainNodesRef = useRef({})
   const playingCount = Object.values(soundState).filter(({ playing }) => playing).length
   const activeCount = Object.values(soundState).filter(({ active }) => active).length
 
@@ -50,7 +53,61 @@ export default function AmbientAudio() {
 
   useEffect(() => () => {
     Object.values(audioRefs.current).forEach((audio) => audio?.pause())
+    Object.values(sourceNodesRef.current).forEach((source) => source?.disconnect())
+    Object.values(gainNodesRef.current).forEach((gain) => gain?.disconnect())
+    audioContextRef.current?.close()
   }, [])
+
+  function ensureAudioGraph(id) {
+    const audio = audioRefs.current[id]
+    if (!audio) return null
+
+    if (!audioContextRef.current) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext
+      if (!AudioContext) return null
+      audioContextRef.current = new AudioContext()
+    }
+
+    const context = audioContextRef.current
+    if (!gainNodesRef.current[id]) {
+      try {
+        const source = context.createMediaElementSource(audio)
+        const gain = context.createGain()
+        source.connect(gain)
+        gain.connect(context.destination)
+        sourceNodesRef.current[id] = source
+        gainNodesRef.current[id] = gain
+      } catch {
+        return null
+      }
+    }
+
+    return { context, gain: gainNodesRef.current[id] }
+  }
+
+  function applyVolume(id, volume, smooth = false) {
+    const graph = ensureAudioGraph(id)
+    if (!graph) {
+      const audio = audioRefs.current[id]
+      if (audio) audio.volume = volume
+      return null
+    }
+
+    const { context, gain } = graph
+    const now = context.currentTime
+    gain.gain.cancelScheduledValues(now)
+    if (smooth) {
+      gain.gain.setTargetAtTime(volume, now, 0.015)
+    } else {
+      gain.gain.setValueAtTime(volume, now)
+    }
+    return context
+  }
+
+  function resumeAudioContext() {
+    const context = audioContextRef.current
+    return context?.state === 'suspended' ? context.resume() : Promise.resolve()
+  }
 
   async function toggleSound(id) {
     const audio = audioRefs.current[id]
@@ -66,9 +123,11 @@ export default function AmbientAudio() {
       return
     }
 
-    audio.volume = current.volume
+    applyVolume(id, current.volume)
+    const resumePromise = resumeAudioContext()
+    const playPromise = audio.play()
     try {
-      await audio.play()
+      await Promise.all([resumePromise.catch(() => {}), playPromise])
       setSoundState((state) => ({
         ...state,
         [id]: { ...state[id], active: true, playing: true },
@@ -82,9 +141,8 @@ export default function AmbientAudio() {
   }
 
   function updateVolume(id, value) {
-    const volume = Number(value)
-    const audio = audioRefs.current[id]
-    if (audio) audio.volume = volume
+    const volume = Math.min(1, Math.max(0, Number(value)))
+    applyVolume(id, volume, true)
     setSoundState((state) => ({
       ...state,
       [id]: { ...state[id], volume },
@@ -112,18 +170,21 @@ export default function AmbientAudio() {
       return
     }
 
-    const results = await Promise.all(sounds.map(async ({ id }) => {
+    sounds.forEach(({ id }) => {
+      if (soundState[id].active) applyVolume(id, soundState[id].volume)
+    })
+    const resumePromise = resumeAudioContext()
+    const playAttempts = sounds.map(({ id }) => {
       if (!soundState[id].active) return [id, false]
       const audio = audioRefs.current[id]
       if (!audio) return [id, false]
-      audio.volume = soundState[id].volume
-      try {
-        await audio.play()
-        return [id, true]
-      } catch {
-        return [id, false]
-      }
-    }))
+      return audio.play().then(
+        () => [id, true],
+        () => [id, false],
+      )
+    })
+    await resumePromise.catch(() => {})
+    const results = await Promise.all(playAttempts)
 
     const resumed = Object.fromEntries(results)
     setSoundState((state) => Object.fromEntries(
@@ -198,7 +259,7 @@ export default function AmbientAudio() {
                         step="0.01"
                         value={volume}
                         aria-label={`${label} volume`}
-                        onChange={(event) => updateVolume(id, event.target.value)}
+                        onInput={(event) => updateVolume(id, event.currentTarget.value)}
                       />
                       <output>{Math.round(volume * 100)}%</output>
                     </label>
