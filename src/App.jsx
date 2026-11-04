@@ -3,6 +3,7 @@ import defaultWallpaper from '../totoro025.jpg'
 import PomodoroTimer from './components/PomodoroTimer'
 import WallpaperControls from './components/WallpaperControls'
 import { loadStoredWallpaper } from './utils/wallpaperStorage'
+import { Analytics } from '@vercel/analytics/next';
 
 export default function App() {
   const [customWallpaperUrl, setCustomWallpaperUrl] = useState(null)
@@ -60,7 +61,7 @@ export default function App() {
             onRestore={restoreDefaultWallpaper}
           />
         </header>
-
+        <Analytics />
         <PomodoroTimer />
       </main>
     </>
