@@ -3,7 +3,7 @@ import defaultWallpaper from '../totoro025.jpg'
 import PomodoroTimer from './components/PomodoroTimer'
 import WallpaperControls from './components/WallpaperControls'
 import { loadStoredWallpaper } from './utils/wallpaperStorage'
-import { Analytics } from '@vercel/analytics/next';
+import { Analytics } from "@vercel/analytics/react";
 
 export default function App() {
   const [customWallpaperUrl, setCustomWallpaperUrl] = useState(null)
