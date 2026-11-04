@@ -71,9 +71,6 @@ function finishTimer(state, notify = true) {
     totalFocusMs: state.totalFocusMs + (completedFocus ? state.sessionDurationMs : 0),
     completionId: notify ? state.completionId + 1 : state.completionId,
     lastCompletedMode: state.mode,
-    message: completedFocus
-      ? `Focus complete — ${nextMode === 'longBreak' ? 'you earned a long break.' : 'time for a short break.'}`
-      : 'Break complete — ready to focus?',
   }
 }
 
@@ -102,7 +99,6 @@ function createInitialState() {
     totalFocusMs: nonNegativeNumber(storedStats.totalFocusMs),
     completionId: 0,
     lastCompletedMode: null,
-    message: '',
   }
 
   if (state.status === 'running') {
@@ -134,7 +130,6 @@ export function pomodoroReducer(state, action) {
         sessionDurationMs: state.status === 'idle'
           ? minutesToMs(state.settings[state.mode])
           : state.sessionDurationMs,
-        message: '',
       }
     }
     case 'PAUSE': {
@@ -154,7 +149,6 @@ export function pomodoroReducer(state, action) {
         remainingMs: duration,
         sessionDurationMs: duration,
         endAt: null,
-        message: '',
       }
     }
     case 'RESET_STATS':
@@ -162,7 +156,6 @@ export function pomodoroReducer(state, action) {
         ...state,
         completedFocusSessions: 0,
         totalFocusMs: 0,
-        message: '',
       }
     case 'SWITCH_MODE': {
       if (!MODES[action.mode]) return state
@@ -174,7 +167,6 @@ export function pomodoroReducer(state, action) {
         remainingMs: duration,
         sessionDurationMs: duration,
         endAt: null,
-        message: '',
       }
     }
     case 'TICK': {

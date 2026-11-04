@@ -24,9 +24,7 @@ function PauseIcon() {
 
 export default function PomodoroTimer() {
   const timer = usePomodoro()
-  const [showStats, setShowStats] = useState(() => (
-    typeof window === 'undefined' || !window.matchMedia('(max-width: 760px)').matches
-  ))
+  const [showStats, setShowStats] = useState(false)
   const isRunning = timer.status === 'running'
   const isPaused = timer.status === 'paused'
   const sessionsUntilLongBreak = 4 - (timer.completedFocusSessions % 4)
@@ -39,7 +37,13 @@ export default function PomodoroTimer() {
       onClick={() => setShowStats((visible) => !visible)}
     >
       <span>Focus stats</span>
-      <span className={`stats-toggle__chevron${showStats ? ' is-open' : ''}`} aria-hidden="true">⌄</span>
+      <svg
+        className={`stats-toggle__chevron${showStats ? ' is-open' : ''}`}
+        viewBox="0 0 10 6"
+        aria-hidden="true"
+      >
+        <path d="M1 1l4 4 4-4" />
+      </svg>
     </button>
   )
 
@@ -88,10 +92,6 @@ export default function PomodoroTimer() {
             Reset
           </button>
         </div>
-
-        {timer.message && (
-          <p className="completion-message" role="status">{timer.message}</p>
-        )}
 
         {showStats && <div className="stats-toggle-row">{statsToggle}</div>}
 

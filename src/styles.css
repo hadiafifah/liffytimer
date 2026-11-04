@@ -23,23 +23,32 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background-image: url('../totoro025.jpg');
-  background-position: center center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  background-attachment: fixed;
+  background: #07120e;
 }
 
-body::before {
-  content: '';
+#root {
+  position: relative;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+.wallpaper-background {
   position: fixed;
   z-index: 0;
   inset: 0;
   pointer-events: none;
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.wallpaper-background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
   background: rgba(0, 0, 0, 0.52);
 }
 
-#root { position: relative; z-index: 1; min-height: 100vh; }
 button, input { font: inherit; }
 button { color: inherit; }
 
@@ -49,6 +58,8 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 }
 
 .app-shell {
+  position: relative;
+  z-index: 1;
   width: min(1480px, calc(100% - clamp(28px, 4vw, 72px)));
   min-height: 100vh;
   margin: 0 auto;
@@ -61,7 +72,9 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 .site-header {
   display: flex;
   align-items: center;
-  width: max-content;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
 }
 
 .brand {
@@ -71,6 +84,114 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   font-weight: 700;
   letter-spacing: -0.02em;
   text-decoration: none;
+}
+
+.wallpaper-controls {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.wallpaper-action { position: relative; }
+
+.wallpaper-button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.wallpaper-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.wallpaper-button--upload {
+  border-color: transparent;
+  color: #fff;
+  background: transparent;
+}
+
+.wallpaper-button--upload svg { stroke-width: 2.3; }
+
+.wallpaper-button--restore {
+  color: #fff;
+  background: rgba(0, 0, 0, 0.36);
+}
+
+.wallpaper-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.wallpaper-button--upload:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.wallpaper-button--restore:hover:not(:disabled) {
+  color: #0c1511;
+  background: #edf8f0;
+}
+
+.wallpaper-button:disabled { cursor: wait; opacity: 0.55; }
+
+.wallpaper-tooltip {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 9px);
+  right: 0;
+  width: max-content;
+  max-width: min(230px, calc(100vw - 32px));
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #fff;
+  background: rgba(3, 7, 5, 0.94);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: opacity 140ms ease, transform 140ms ease;
+  font-size: 0.68rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.wallpaper-action:hover .wallpaper-tooltip,
+.wallpaper-action:focus-within .wallpaper-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.wallpaper-message {
+  position: absolute;
+  z-index: 19;
+  top: calc(100% + 10px);
+  right: 0;
+  width: max-content;
+  max-width: min(270px, calc(100vw - 32px));
+  margin: 0;
+  padding: 8px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 9px;
+  color: var(--text);
+  background: rgba(3, 7, 5, 0.95);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.38);
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .timer-section {
@@ -216,20 +337,6 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 .pause-icon { display: inline-flex; gap: 3px; }
 .pause-icon i { display: block; width: 3px; height: 11px; border-radius: 2px; background: currentColor; }
 
-.completion-message {
-  width: fit-content;
-  max-width: calc(100% - 48px);
-  margin: -20px auto 26px;
-  padding: 9px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  color: var(--text);
-  background: rgba(0, 0, 0, 0.28);
-  text-align: center;
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
 .stats-toggle-row {
   display: flex;
   justify-content: flex-start;
@@ -260,14 +367,22 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 }
 
 .stats-toggle__chevron {
-  display: inline-block;
-  color: var(--faint);
-  font-size: 0.9rem;
-  line-height: 0.8;
+  width: 9px;
+  height: 6px;
+  flex: 0 0 auto;
+  display: block;
+  overflow: visible;
+  fill: none;
+  stroke: var(--faint);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transform: rotate(180deg);
+  transform-origin: center;
   transition: transform 160ms ease;
 }
 
-.stats-toggle__chevron.is-open { transform: rotate(180deg); }
+.stats-toggle__chevron.is-open { transform: rotate(0); }
 
 .stats-grid {
   display: grid;
@@ -567,49 +682,6 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   white-space: nowrap;
 }
 
-.todo-filter {
-  position: relative;
-  flex: 0 1 142px;
-  min-width: 0;
-  max-width: 54%;
-}
-
-.todo-filter::after {
-  content: '⌄';
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  pointer-events: none;
-  color: var(--faint);
-  font-size: 0.92rem;
-  transform: translateY(-57%);
-}
-
-.todo-filter select {
-  width: 100%;
-  min-width: 0;
-  appearance: none;
-  -webkit-appearance: none;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.13);
-  border-radius: 9px;
-  outline: 0;
-  padding: 8px 30px 8px 11px;
-  color: var(--muted);
-  background: rgba(0, 0, 0, 0.24);
-  cursor: pointer;
-  font-size: 0.92rem;
-  font-weight: 600;
-  text-overflow: ellipsis;
-}
-
-.todo-filter select:hover,
-.todo-filter select:focus-visible {
-  border-color: rgba(255, 255, 255, 0.3);
-  color: #fff;
-  background: rgba(0, 0, 0, 0.38);
-}
-
 .todo-items {
   display: grid;
   gap: 8px;
@@ -864,8 +936,8 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 }
 
 @media (max-width: 760px) {
-  body { background-position: 52% center; }
-  body::before { background: rgba(0, 0, 0, 0.57); }
+  .wallpaper-background { background-position: 52% center; }
+  .wallpaper-background::after { background: rgba(0, 0, 0, 0.57); }
   .app-shell { width: min(calc(100% - 32px), 1480px); padding: 16px 0 24px; gap: 18px; }
   .brand { font-size: 2.35rem; }
   .timer-section { align-items: flex-start; padding-bottom: 0; }

@@ -125,7 +125,6 @@ function reorderTask(toDoList, sourceId, targetId, placeAfter) {
 
 export default function ToDoList() {
   const [toDoList, setToDoList] = useState(loadToDoList)
-  const [filter, setFilter] = useState('all')
   const [editingId, setEditingId] = useState(null)
   const [editTask, setEditTask] = useState('')
   const [draggingId, setDraggingId] = useState(null)
@@ -184,7 +183,7 @@ export default function ToDoList() {
   }
 
   function handleIndentTask(item, description) {
-    if (filter !== 'all' || item.parentId !== null) return false
+    if (item.parentId !== null) return false
 
     const currentIndex = toDoList.findIndex((candidate) => candidate.id === item.id)
     const hasSubtasks = toDoList.some((candidate) => candidate.parentId === item.id)
@@ -257,7 +256,6 @@ export default function ToDoList() {
       ...current,
       { desc: '', completed: false, id, parentId: null },
     ])
-    setFilter('all')
     cancelEditRef.current = false
     setEditingId(id)
     setEditTask('')
@@ -278,7 +276,6 @@ export default function ToDoList() {
       })
       return next
     })
-    setFilter('all')
     cancelEditRef.current = false
     setEditingId(id)
     setEditTask('')
@@ -289,17 +286,13 @@ export default function ToDoList() {
   }
 
   function handleDragStart(event, id) {
-    if (filter !== 'all') {
-      event.preventDefault()
-      return
-    }
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', String(id))
     setDraggingId(id)
   }
 
   function handleDragOver(event, targetId) {
-    if (filter !== 'all' || draggingId === null) return
+    if (draggingId === null) return
     const source = toDoList.find((item) => item.id === draggingId)
     const target = toDoList.find((item) => item.id === targetId)
     if (!source || !target || source.parentId !== target.parentId) return
@@ -323,14 +316,7 @@ export default function ToDoList() {
     setDropTargetId(null)
   }
 
-  const visibleItems = toDoList.filter((item) => {
-    if (filter === 'completed') return item.completed
-    if (filter === 'incomplete') return !item.completed
-    return true
-  })
-
-  const listItems = visibleItems.map((item) => {
-    const canReorder = filter === 'all'
+  const listItems = toDoList.map((item) => {
     const isSubtask = item.parentId !== null
     const taskName = item.desc || 'empty task'
     const hasTaskText = (editingId === item.id ? editTask : item.desc).trim().length > 0
@@ -345,13 +331,12 @@ export default function ToDoList() {
           <button
             className="todo-item__drag"
             type="button"
-            draggable={canReorder}
+            draggable
             aria-label={`Drag to reorder ${taskName}. Use arrow keys to move it.`}
-            title={canReorder ? 'Drag to reorder' : 'Show all tasks to reorder'}
+            title="Drag to reorder"
             onDragStart={(event) => handleDragStart(event, item.id)}
             onDragEnd={handleDragEnd}
             onKeyDown={(event) => {
-              if (!canReorder) return
               if (event.key === 'ArrowUp') {
                 event.preventDefault()
                 handleMove(item.id, -1)
@@ -428,14 +413,6 @@ export default function ToDoList() {
     <div className="todo-list">
       <div className="todo-list__header">
         <h2>To-do list</h2>
-        <label className="todo-filter">
-          <span className="sr-only">Filter tasks</span>
-          <select value={filter} onChange={(event) => setFilter(event.target.value)}>
-            <option value="all">all</option>
-            <option value="incomplete">incomplete</option>
-            <option value="completed">completed</option>
-          </select>
-        </label>
       </div>
       <ul className="todo-items">
         {listItems}
