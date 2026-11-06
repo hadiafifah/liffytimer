@@ -275,21 +275,6 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   background: rgba(0, 0, 0, 0.2);
 }
 
-.timer-kicker {
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--muted);
-  font-size: clamp(0.7rem, 0.66vw, 0.8rem);
-  font-weight: 600;
-  letter-spacing: 0.03em;
-  margin-bottom: clamp(32px, 3vw, 48px);
-}
-
-.status-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255, 255, 255, 0.4); }
-.status-dot.running { background: #b8dfc1; box-shadow: 0 0 0 5px rgba(184, 223, 193, 0.13); }
-.status-dot.paused { background: #e2c694; }
-
 .timer-time {
   margin-top: 0;
   color: #fff;
@@ -935,6 +920,19 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   .todo-practice-root { min-height: 280px; }
 }
 
+@media (min-width: 1101px) {
+  .timer-card {
+    align-self: stretch;
+    display: flex;
+    flex-direction: column;
+  }
+  .timer-display {
+    flex: 1;
+    justify-content: center;
+  }
+  .stats-footer { margin-top: auto; }
+}
+
 @media (max-width: 760px) {
   .wallpaper-background { background-position: 52% center; }
   .wallpaper-background::after { background: rgba(0, 0, 0, 0.57); }
@@ -950,7 +948,6 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   .short-label { display: inline; }
   .icon-button { width: 40px; height: 40px; }
   .timer-display { margin: 18px 15px 0; padding: 40px 10px 36px; border-radius: 18px; }
-  .timer-kicker { margin-bottom: 26px; }
   .timer-time { font-size: clamp(4.2rem, 20vw, 6.2rem); }
   .timer-actions { padding: 20px 16px 26px; }
   .primary-action { min-width: 145px; }

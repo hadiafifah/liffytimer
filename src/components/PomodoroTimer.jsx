@@ -74,7 +74,6 @@ export default function PomodoroTimer() {
 
         <TimerDisplay
           remainingMs={timer.remainingMs}
-          status={timer.status}
           label={MODES[timer.mode].label}
         />
 
