@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 const TODO_STORAGE_KEY = 'liffy:todos'
 
@@ -96,31 +96,41 @@ function moveTask(toDoList, id, direction) {
   return groups.flat()
 }
 
-function reorderTask(toDoList, sourceId, targetId, placeAfter) {
-  if (sourceId === targetId) return toDoList
+function reorderTask(toDoList, sourceId, dropPlan) {
   const source = toDoList.find((item) => item.id === sourceId)
-  const target = toDoList.find((item) => item.id === targetId)
-  if (!source || !target || source.parentId !== target.parentId) return toDoList
+  const target = toDoList.find((item) => item.id === dropPlan?.targetId)
+  if (!source || !target || source.id === target.id) return toDoList
 
-  if (source.parentId !== null) {
-    const reordered = [...toDoList]
-    const sourceIndex = reordered.findIndex((item) => item.id === sourceId)
-    const [sourceItem] = reordered.splice(sourceIndex, 1)
-    const targetIndex = reordered.findIndex((item) => item.id === targetId)
-    reordered.splice(targetIndex + (placeAfter ? 1 : 0), 0, sourceItem)
+  if (source.parentId === null) {
+    if (target.parentId !== null || dropPlan.placement === 'inside') return toDoList
+    const parents = toDoList.filter((item) => item.parentId === null)
+    const groups = parents.map((parent) => [
+      parent,
+      ...toDoList.filter((item) => item.parentId === parent.id),
+    ])
+    const sourceIndex = groups.findIndex(([parent]) => parent.id === sourceId)
+    const [sourceGroup] = groups.splice(sourceIndex, 1)
+    const targetIndex = groups.findIndex(([parent]) => parent.id === target.id)
+    groups.splice(targetIndex + (dropPlan.placement === 'after' ? 1 : 0), 0, sourceGroup)
+    return groups.flat()
+  }
+
+  const reordered = toDoList.filter((item) => item.id !== sourceId)
+  if (dropPlan.placement === 'inside') {
+    if (target.parentId !== null) return toDoList
+    let insertionIndex = reordered.findIndex((item) => item.id === target.id) + 1
+    while (reordered[insertionIndex]?.parentId === target.id) insertionIndex += 1
+    reordered.splice(insertionIndex, 0, { ...source, parentId: target.id })
     return reordered
   }
 
-  const parents = toDoList.filter((item) => item.parentId === null)
-  const groups = parents.map((parent) => [
-    parent,
-    ...toDoList.filter((item) => item.parentId === parent.id),
-  ])
-  const sourceIndex = groups.findIndex(([parent]) => parent.id === sourceId)
-  const [sourceGroup] = groups.splice(sourceIndex, 1)
-  const targetIndex = groups.findIndex(([parent]) => parent.id === targetId)
-  groups.splice(targetIndex + (placeAfter ? 1 : 0), 0, sourceGroup)
-  return groups.flat()
+  if (target.parentId === null) return toDoList
+  const targetIndex = reordered.findIndex((item) => item.id === target.id)
+  reordered.splice(targetIndex + (dropPlan.placement === 'after' ? 1 : 0), 0, {
+    ...source,
+    parentId: target.parentId,
+  })
+  return reordered
 }
 
 export default function ToDoList() {
@@ -128,9 +138,11 @@ export default function ToDoList() {
   const [editingId, setEditingId] = useState(null)
   const [editTask, setEditTask] = useState('')
   const [draggingId, setDraggingId] = useState(null)
-  const [dropTargetId, setDropTargetId] = useState(null)
+  const [dropPlan, setDropPlan] = useState(null)
   const editInputRef = useRef(null)
   const cancelEditRef = useRef(false)
+  const itemRefs = useRef(new Map())
+  const previousPositionsRef = useRef(null)
   const nextIdRef = useRef(
     toDoList.reduce((nextId, item) => Math.max(nextId, item.id + 1), 0),
   )
@@ -144,6 +156,41 @@ export default function ToDoList() {
     editInputRef.current?.focus()
     editInputRef.current?.select()
   }, [editingId])
+
+  useLayoutEffect(() => {
+    const previousPositions = previousPositionsRef.current
+    if (!previousPositions) return
+    previousPositionsRef.current = null
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+
+    itemRefs.current.forEach((node, id) => {
+      const previous = previousPositions.get(id)
+      if (!previous) return
+      const current = node.getBoundingClientRect()
+      const deltaX = previous.left - current.left
+      const deltaY = previous.top - current.top
+      if (!node.animate || (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1)) return
+
+      node.animate(
+        [
+          { transform: `translate(${deltaX}px, ${deltaY}px)`, opacity: 0.72 },
+          { transform: 'translate(0, 0)', opacity: 1 },
+        ],
+        { duration: 240, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      )
+    })
+  }, [toDoList])
+
+  function captureItemPositions() {
+    previousPositionsRef.current = new Map(
+      [...itemRefs.current].map(([id, node]) => [id, node.getBoundingClientRect()]),
+    )
+  }
+
+  function updateListWithAnimation(updater) {
+    captureItemPositions()
+    setToDoList(updater)
+  }
 
   function handleDelete(id) {
     setToDoList((current) => current.filter(
@@ -192,7 +239,7 @@ export default function ToDoList() {
     const taskAbove = toDoList[currentIndex - 1]
     const parentId = taskAbove.parentId ?? taskAbove.id
     const updatedDescription = description.trim()
-    setToDoList((current) => current.map((candidate) => (
+    updateListWithAnimation((current) => current.map((candidate) => (
       candidate.id === item.id
         ? {
           ...candidate,
@@ -201,6 +248,29 @@ export default function ToDoList() {
         }
         : candidate
     )))
+    return true
+  }
+
+  function handleOutdentTask(item, description) {
+    if (item.parentId === null) return false
+
+    const updatedDescription = description.trim()
+    updateListWithAnimation((current) => {
+      const source = current.find((candidate) => candidate.id === item.id)
+      if (!source || source.parentId === null) return current
+
+      const reordered = current.filter((candidate) => candidate.id !== item.id)
+      let insertionIndex = reordered.findIndex(
+        (candidate) => candidate.id === source.parentId,
+      ) + 1
+      while (reordered[insertionIndex]?.parentId === source.parentId) insertionIndex += 1
+      reordered.splice(insertionIndex, 0, {
+        ...source,
+        parentId: null,
+        desc: updatedDescription || source.desc,
+      })
+      return reordered
+    })
     return true
   }
 
@@ -240,7 +310,9 @@ export default function ToDoList() {
     if (event.key === 'Enter') {
       event.preventDefault()
       handleFinishAndAddNext(item, event.currentTarget.value)
-    } else if (event.key === 'Tab' && !event.shiftKey) {
+    } else if (event.key === 'Tab' && event.shiftKey) {
+      if (handleOutdentTask(item, event.currentTarget.value)) event.preventDefault()
+    } else if (event.key === 'Tab') {
       if (handleIndentTask(item, event.currentTarget.value)) event.preventDefault()
     } else if (event.key === 'Escape') {
       cancelEditRef.current = true
@@ -282,48 +354,96 @@ export default function ToDoList() {
   }
 
   function handleMove(id, direction) {
-    setToDoList((current) => moveTask(current, id, direction))
+    updateListWithAnimation((current) => moveTask(current, id, direction))
   }
 
   function handleDragStart(event, id) {
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/plain', String(id))
+    const dragPreview = event.currentTarget.closest('.todo-item')
+    if (dragPreview) event.dataTransfer.setDragImage(dragPreview, 24, 24)
     setDraggingId(id)
+    setDropPlan(null)
+  }
+
+  function calculateDropPlan(event, sourceId, targetId) {
+    const source = toDoList.find((item) => item.id === sourceId)
+    const target = toDoList.find((item) => item.id === targetId)
+    if (!source || !target || source.id === target.id) return null
+
+    if (source.parentId === null && target.parentId !== null) return null
+    if (source.parentId !== null && target.parentId === null) {
+      return { targetId, indicatorId: targetId, placement: 'inside' }
+    }
+
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const placement = event.clientY > bounds.top + (bounds.height / 2) ? 'after' : 'before'
+    const targetChildren = source.parentId === null && placement === 'after'
+      ? toDoList.filter((item) => item.parentId === target.id)
+      : []
+    return {
+      targetId,
+      indicatorId: targetChildren.at(-1)?.id ?? targetId,
+      placement,
+    }
   }
 
   function handleDragOver(event, targetId) {
     if (draggingId === null) return
-    const source = toDoList.find((item) => item.id === draggingId)
-    const target = toDoList.find((item) => item.id === targetId)
-    if (!source || !target || source.parentId !== target.parentId) return
+    const nextDropPlan = calculateDropPlan(event, draggingId, targetId)
+    if (!nextDropPlan) {
+      setDropPlan(null)
+      return
+    }
     event.preventDefault()
     event.dataTransfer.dropEffect = 'move'
-    setDropTargetId(targetId)
+    setDropPlan((current) => (
+      current?.targetId === nextDropPlan.targetId
+        && current.indicatorId === nextDropPlan.indicatorId
+        && current.placement === nextDropPlan.placement
+        ? current
+        : nextDropPlan
+    ))
   }
 
   function handleDrop(event, targetId) {
     event.preventDefault()
     const sourceId = Number(event.dataTransfer.getData('text/plain'))
-    const bounds = event.currentTarget.getBoundingClientRect()
-    const placeAfter = event.clientY > bounds.top + (bounds.height / 2)
-    setToDoList((current) => reorderTask(current, sourceId, targetId, placeAfter))
+    const nextDropPlan = calculateDropPlan(event, sourceId, targetId)
+    if (nextDropPlan) {
+      updateListWithAnimation((current) => reorderTask(current, sourceId, nextDropPlan))
+    }
     setDraggingId(null)
-    setDropTargetId(null)
+    setDropPlan(null)
   }
 
   function handleDragEnd() {
     setDraggingId(null)
-    setDropTargetId(null)
+    setDropPlan(null)
+  }
+
+  function handleListDragLeave(event) {
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const isOutside = event.clientX <= bounds.left
+      || event.clientX >= bounds.right
+      || event.clientY <= bounds.top
+      || event.clientY >= bounds.bottom
+    if (isOutside) setDropPlan(null)
   }
 
   const listItems = toDoList.map((item) => {
     const isSubtask = item.parentId !== null
     const taskName = item.desc || 'empty task'
     const hasTaskText = (editingId === item.id ? editTask : item.desc).trim().length > 0
+    const dropPlacement = dropPlan?.indicatorId === item.id ? dropPlan.placement : null
 
     return (
       <li
-        className={`todo-item${isSubtask ? ' todo-item--subtask' : ''}${item.completed ? ' todo-item--completed' : ''}${draggingId === item.id ? ' is-dragging' : ''}${dropTargetId === item.id ? ' is-drop-target' : ''}`}
+        ref={(node) => {
+          if (node) itemRefs.current.set(item.id, node)
+          else itemRefs.current.delete(item.id)
+        }}
+        className={`todo-item${isSubtask ? ' todo-item--subtask' : ''}${item.completed ? ' todo-item--completed' : ''}${draggingId === item.id ? ' is-dragging' : ''}${dropPlacement ? ` is-drop-${dropPlacement}` : ''}`}
         key={item.id}
         onDragOver={(event) => handleDragOver(event, item.id)}
         onDrop={(event) => handleDrop(event, item.id)}
@@ -343,6 +463,9 @@ export default function ToDoList() {
               } else if (event.key === 'ArrowDown') {
                 event.preventDefault()
                 handleMove(item.id, 1)
+              } else if (event.key === 'Tab' && event.shiftKey && isSubtask) {
+                event.preventDefault()
+                handleOutdentTask(item, item.desc)
               }
             }}
           >
@@ -412,11 +535,24 @@ export default function ToDoList() {
   return (
     <div className="todo-list">
       <div className="todo-list__header">
-        <h2>To-do list</h2>
+        <div>
+          <h2>To-do list</h2>
+          <p className="todo-list__hint">
+            Drag to reorder or reparent · While editing: Tab / Shift+Tab to nest / unnest
+          </p>
+        </div>
       </div>
-      <ul className="todo-items">
+      <ul
+        className={`todo-items${draggingId !== null ? ' is-sorting' : ''}`}
+        onDragLeave={handleListDragLeave}
+      >
         {listItems}
       </ul>
+      <p className="sr-only" aria-live="polite">
+        {draggingId !== null
+          ? 'Choose a highlighted insertion point. Drop a subtask on a main task to move it under that task.'
+          : ''}
+      </p>
       <button className="todo-new-task" type="button" onClick={handleAddTask}>
         <span aria-hidden="true">+</span>
         New task

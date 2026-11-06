@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useRef } from 'react'
+import alarmSound from '../../media/sounds/alarm.wav'
 
 export const MODES = {
   focus: { label: 'Focus', shortLabel: 'Focus' },
@@ -195,33 +196,79 @@ export function pomodoroReducer(state, action) {
 export default function usePomodoro() {
   const [state, dispatch] = useReducer(pomodoroReducer, undefined, createInitialState)
   const audioContextRef = useRef(null)
+  const alarmBufferRef = useRef(null)
+  const alarmBufferPromiseRef = useRef(null)
+  const alarmSourceRef = useRef(null)
   const lastNotifiedRef = useRef(state.completionId)
 
-  const enableSound = () => {
+  const enableSound = async () => {
     const AudioContext = window.AudioContext || window.webkitAudioContext
-    if (!AudioContext) return
+    if (!AudioContext) return null
     if (!audioContextRef.current) audioContextRef.current = new AudioContext()
-    if (audioContextRef.current.state === 'suspended') audioContextRef.current.resume()
+    if (audioContextRef.current.state === 'suspended') {
+      try {
+        await audioContextRef.current.resume()
+      } catch {
+        return null
+      }
+    }
+    return audioContextRef.current
   }
 
-  const playNotification = () => {
-    const context = audioContextRef.current
-    if (!context || context.state !== 'running') return
+  const loadAlarm = async (context) => {
+    if (alarmBufferRef.current) return alarmBufferRef.current
 
-    const startAt = context.currentTime
-    ;[0, 0.18].forEach((delay, index) => {
-      const oscillator = context.createOscillator()
-      const gain = context.createGain()
-      oscillator.type = 'sine'
-      oscillator.frequency.value = index === 0 ? 660 : 880
-      gain.gain.setValueAtTime(0.0001, startAt + delay)
-      gain.gain.exponentialRampToValueAtTime(0.22, startAt + delay + 0.02)
-      gain.gain.exponentialRampToValueAtTime(0.0001, startAt + delay + 0.22)
-      oscillator.connect(gain)
-      gain.connect(context.destination)
-      oscillator.start(startAt + delay)
-      oscillator.stop(startAt + delay + 0.24)
-    })
+    if (!alarmBufferPromiseRef.current) {
+      alarmBufferPromiseRef.current = fetch(alarmSound)
+        .then((response) => {
+          if (!response.ok) throw new Error('Unable to load the timer alarm')
+          return response.arrayBuffer()
+        })
+        .then((arrayBuffer) => context.decodeAudioData(arrayBuffer))
+        .then((buffer) => {
+          alarmBufferRef.current = buffer
+          return buffer
+        })
+        .catch((error) => {
+          alarmBufferPromiseRef.current = null
+          throw error
+        })
+    }
+
+    return alarmBufferPromiseRef.current
+  }
+
+  const prepareNotification = async () => {
+    const context = await enableSound()
+    if (!context || context.state !== 'running') return null
+
+    try {
+      const buffer = await loadAlarm(context)
+      return { context, buffer }
+    } catch {
+      return null
+    }
+  }
+
+  const playNotification = async () => {
+    const prepared = await prepareNotification()
+    if (!prepared) return false
+
+    const { context, buffer } = prepared
+    alarmSourceRef.current?.stop()
+
+    const source = context.createBufferSource()
+    const gain = context.createGain()
+    source.buffer = buffer
+    gain.gain.setValueAtTime(1, context.currentTime)
+    source.connect(gain)
+    gain.connect(context.destination)
+    source.onended = () => {
+      if (alarmSourceRef.current === source) alarmSourceRef.current = null
+    }
+    alarmSourceRef.current = source
+    source.start()
+    return true
   }
 
   useEffect(() => {
@@ -241,7 +288,7 @@ export default function usePomodoro() {
   useEffect(() => {
     if (state.completionId > lastNotifiedRef.current) {
       lastNotifiedRef.current = state.completionId
-      playNotification()
+      void playNotification()
     }
   }, [state.completionId])
 
@@ -270,7 +317,7 @@ export default function usePomodoro() {
   return {
     ...state,
     start() {
-      enableSound()
+      void prepareNotification()
       dispatch({ type: 'START', now: Date.now() })
     },
     pause() {

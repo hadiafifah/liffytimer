@@ -667,13 +667,23 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   white-space: nowrap;
 }
 
+.todo-list__hint {
+  margin: 8px 0 0;
+  color: var(--faint);
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+
 .todo-items {
+  position: relative;
   display: grid;
   gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
+
+.todo-items.is-sorting { user-select: none; }
 
 .todo-item {
   position: relative;
@@ -686,7 +696,8 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.035);
-  transition: border-color 160ms ease, background 160ms ease, opacity 160ms ease;
+  box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease, opacity 160ms ease, transform 160ms ease;
 }
 
 .todo-item:hover { border-color: rgba(255, 255, 255, 0.17); background: rgba(255, 255, 255, 0.055); }
@@ -709,8 +720,60 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   border-radius: 0 0 0 7px;
 }
 
-.todo-item.is-dragging { opacity: 0.35; }
-.todo-item.is-drop-target { background: rgba(215, 234, 220, 0.08); }
+.todo-item.is-dragging {
+  z-index: 2;
+  border-color: rgba(215, 234, 220, 0.34);
+  border-style: dashed;
+  background: rgba(215, 234, 220, 0.08);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28);
+  opacity: 0.42;
+  transform: scale(0.985) rotate(-0.5deg);
+}
+
+.todo-item.is-drop-before::after,
+.todo-item.is-drop-after::after {
+  content: '';
+  position: absolute;
+  z-index: 4;
+  right: 4px;
+  left: 4px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 1px rgba(7, 18, 14, 0.9), 0 0 12px rgba(215, 234, 220, 0.7);
+  pointer-events: none;
+}
+
+.todo-item.is-drop-before::after { top: -6px; }
+.todo-item.is-drop-after::after { bottom: -6px; }
+
+.todo-item.is-drop-before { transform: translateY(2px); }
+.todo-item.is-drop-after { transform: translateY(-2px); }
+
+.todo-item.is-drop-inside {
+  border-color: rgba(215, 234, 220, 0.72);
+  background: rgba(215, 234, 220, 0.12);
+  box-shadow: inset 3px 0 0 var(--accent), 0 0 0 3px rgba(215, 234, 220, 0.08);
+  transform: scale(1.012);
+}
+
+.todo-item.is-drop-inside::after {
+  content: 'Move under this task';
+  position: absolute;
+  z-index: 4;
+  top: -10px;
+  right: 10px;
+  padding: 3px 7px;
+  border: 1px solid rgba(215, 234, 220, 0.38);
+  border-radius: 999px;
+  color: #f4fff7;
+  background: #16251d;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.3);
+  font-size: 0.57rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
 
 .todo-item__complete {
   position: relative;
