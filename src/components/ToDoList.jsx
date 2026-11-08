@@ -333,13 +333,16 @@ export default function ToDoList() {
     setEditTask('')
   }
 
-  function handleAddSubtask(parentId) {
+  function handleAddSubtask(item) {
     const id = nextIdRef.current
     nextIdRef.current += 1
     setToDoList((current) => {
       const next = [...current]
-      let insertionIndex = next.findIndex((item) => item.id === parentId) + 1
-      while (next[insertionIndex]?.parentId === parentId) insertionIndex += 1
+      const parentId = item.parentId ?? item.id
+      let insertionIndex = next.findIndex((candidate) => candidate.id === item.id) + 1
+      if (item.parentId === null) {
+        while (next[insertionIndex]?.parentId === parentId) insertionIndex += 1
+      }
       next.splice(insertionIndex, 0, {
         desc: '',
         completed: false,
@@ -507,17 +510,17 @@ export default function ToDoList() {
           )}
 
           <div className="todo-item__actions">
-            {!isSubtask && (
-              <button
-                className="todo-item__subtask"
-                type="button"
-                aria-label={`Add subtask to ${taskName}`}
-                title="Add subtask"
-                onClick={() => handleAddSubtask(item.id)}
-              >
-                <span aria-hidden="true">+</span>
-              </button>
-            )}
+            <button
+              className="todo-item__subtask"
+              type="button"
+              aria-label={isSubtask
+                ? `Add another subtask after ${taskName}`
+                : `Add subtask to ${taskName}`}
+              title={isSubtask ? 'Add subtask below' : 'Add subtask'}
+              onClick={() => handleAddSubtask(item)}
+            >
+              <span aria-hidden="true">+</span>
+            </button>
 
             <button
               className="todo-item__delete"

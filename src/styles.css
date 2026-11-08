@@ -324,7 +324,9 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 
 .stats-toggle-row {
   display: flex;
+  align-items: center;
   justify-content: flex-start;
+  gap: 8px;
   padding: 8px 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(0, 0, 0, 0.12);
@@ -433,6 +435,89 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   cursor: not-allowed;
   opacity: 0.38;
 }
+
+.confirmation-backdrop {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.64);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+
+.confirmation-dialog {
+  width: min(410px, 100%);
+  padding: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 20px;
+  color: var(--text);
+  background: rgba(7, 13, 10, 0.97);
+  box-shadow: 0 32px 100px rgba(0, 0, 0, 0.62);
+  text-align: center;
+}
+
+.confirmation-dialog__icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 16px;
+  border: 1px solid rgba(240, 177, 177, 0.3);
+  border-radius: 50%;
+  color: #f0b1b1;
+  background: rgba(107, 36, 36, 0.28);
+  font-size: 1.35rem;
+}
+
+.confirmation-dialog h2 {
+  margin: 0;
+  color: #fff;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 600;
+}
+
+.confirmation-dialog p {
+  margin: 10px auto 24px;
+  max-width: 32ch;
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.confirmation-dialog__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.confirmation-dialog__actions button {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.confirmation-dialog__cancel {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.confirmation-dialog__cancel:hover { background: rgba(255, 255, 255, 0.11); }
+
+.confirmation-dialog__confirm {
+  border: 1px solid rgba(240, 177, 177, 0.28);
+  color: #ffe7e7;
+  background: rgba(107, 36, 36, 0.48);
+}
+
+.confirmation-dialog__confirm:hover { background: rgba(130, 42, 42, 0.62); }
 
 .ambient-audio {
   position: relative;
@@ -645,7 +730,13 @@ button:focus-visible, input:focus-visible, a:focus-visible {
   -webkit-backdrop-filter: blur(20px) saturate(120%);
 }
 
-.todo-list { display: grid; gap: 16px; }
+.todo-list {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 16px;
+}
 
 .todo-list__header {
   display: flex;
@@ -677,10 +768,17 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 .todo-items {
   position: relative;
   display: grid;
+  align-content: start;
+  grid-auto-rows: max-content;
   gap: 8px;
   margin: 0;
   padding: 0;
   list-style: none;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 4px;
 }
 
 .todo-items.is-sorting { user-select: none; }
@@ -984,16 +1082,39 @@ button:focus-visible, input:focus-visible, a:focus-visible {
 }
 
 @media (min-width: 1101px) {
+  .app-shell {
+    height: 100dvh;
+    min-height: 640px;
+  }
+  .timer-section {
+    min-height: 0;
+    grid-template-rows: minmax(0, 1fr);
+  }
   .timer-card {
     align-self: stretch;
     display: flex;
     flex-direction: column;
+    height: 100%;
+    min-height: 0;
+  }
+  .timer-card.is-stats-open {
+    align-self: start;
+    height: auto;
+    min-height: 100%;
+  }
+  .timer-card.is-stats-open .timer-display {
+    flex: 0 0 var(--collapsed-timer-display-height, auto);
   }
   .timer-display {
     flex: 1;
     justify-content: center;
   }
   .stats-footer { margin-top: auto; }
+  .todo-practice-root {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
 }
 
 @media (max-width: 760px) {
